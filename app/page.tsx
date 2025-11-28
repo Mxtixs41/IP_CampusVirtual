@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard, BookOpen, Video, Calendar, MessageCircle, FileText,
   LogOut, Bell, Search, User, ChevronRight, PlayCircle, Download,
-  CheckCircle, Clock, AlertCircle, MoreVertical, Filter, Plus
+  CheckCircle, Clock, AlertCircle, MoreVertical, Filter, Plus,
+  Library, Settings, Upload, X, Menu, Award, GraduationCap, MapPin, Mail, Phone, Edit3,
+  HelpCircle, MessageSquare
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, AreaChart, Area
+  LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, ComposedChart
 } from 'recharts';
 
 // --- 1. CONFIGURACIÓN DE COLORES Y TEMA ---
@@ -28,16 +30,16 @@ interface Curso {
   tareasPendientes: number;
   imagen: string;
   descripcion?: string;
-  promedioActual?: number; // Nuevo campo para mostrar nota en tarjeta
+  promedioActual?: number;
 }
 
 interface ActividadReciente {
   id: number;
-  tipo: 'Tarea' | 'Foro' | 'Recurso' | 'Zoom';
+  tipo: 'Tarea' | 'Foro' | 'Recurso' | 'Zoom' | 'Examen';
   titulo: string;
   curso: string;
   fecha: string;
-  estado: 'Pendiente' | 'Completado' | 'Nuevo';
+  estado: 'Pendiente' | 'Completado' | 'Nuevo' | 'Urgente';
 }
 
 interface EventoCalendario {
@@ -69,6 +71,24 @@ interface Foro {
   estado: 'Nuevo' | 'Activo' | 'Cerrado';
 }
 
+interface RecursoBiblioteca {
+  id: number;
+  titulo: string;
+  tipo: 'PDF' | 'Video' | 'Link';
+  curso: string;
+  fecha: string;
+  size?: string;
+}
+
+interface Tarea {
+  id: number;
+  titulo: string;
+  curso: string;
+  vencimiento: string;
+  estado: 'Pendiente' | 'Entregado' | 'Calificado' | 'Atrasado';
+  nota?: number;
+}
+
 // --- 3. DATOS SIMULADOS ---
 const cursosData: Curso[] = [
   {
@@ -76,7 +96,7 @@ const cursosData: Curso[] = [
     progreso: 75, proximaClase: "Hoy, 14:30 hrs", linkZoom: "#", tareasPendientes: 1,
     imagen: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=500&q=60",
     descripcion: "Estudio de la estructura y función del cuerpo humano.",
-    promedioActual: 3.8 // Nota modificada a rojo (< 4.0)
+    promedioActual: 3.8
   },
   {
     id: 2, nombre: "Matemáticas Aplicadas", codigo: "MAT-200", profesor: "Mg. Ana Silva",
@@ -103,9 +123,10 @@ const cursosData: Curso[] = [
 
 const actividadesData: ActividadReciente[] = [
   { id: 1, tipo: 'Zoom', titulo: "Clase Grabada: Sistema Nervioso", curso: "Anatomía General I", fecha: "Hace 2 horas", estado: 'Nuevo' },
-  { id: 2, tipo: 'Tarea', titulo: "Entrega Informe Laboratorio 3", curso: "Anatomía General I", fecha: "Vence en 5 horas", estado: 'Pendiente' },
+  { id: 2, tipo: 'Tarea', titulo: "Entrega Informe Laboratorio 3", curso: "Anatomía General I", fecha: "Vence en 5 horas", estado: 'Urgente' },
   { id: 3, tipo: 'Foro', titulo: "Dudas sobre el examen final", curso: "Matemáticas Aplicadas", fecha: "Ayer", estado: 'Completado' },
   { id: 4, tipo: 'Recurso', titulo: "PDF: Guía de Estudio", curso: "Taller de Empleabilidad", fecha: "Hace 2 días", estado: 'Nuevo' },
+  { id: 5, tipo: 'Examen', titulo: "Quiz Rápido Unidad 2", curso: "Inglés Técnico II", fecha: "Hace 3 días", estado: 'Completado' },
 ];
 
 const calendarioData: EventoCalendario[] = [
@@ -116,7 +137,6 @@ const calendarioData: EventoCalendario[] = [
 ];
 
 const notasData: Nota[] = [
-  // Anatomía con nota roja (3.8)
   { id: 1, curso: "Anatomía General I", evaluacion: "Prueba Solemne 1", ponderacion: "30%", nota: 3.8, fecha: "10/10/2025" },
   { id: 2, curso: "Anatomía General I", evaluacion: "Control de Lectura", ponderacion: "15%", nota: 4.0, fecha: "25/10/2025" },
   { id: 3, curso: "Matemáticas Aplicadas", evaluacion: "Guía de Ejercicios", ponderacion: "20%", nota: 4.2, fecha: "15/10/2025" },
@@ -130,19 +150,42 @@ const forosData: Foro[] = [
   { id: 4, titulo: "Consulta sobre la prueba de Anatomía", curso: "Anatomía General I", autor: "Juan Pérez", respuestas: 2, ultimoMensaje: "Hace 3 horas", estado: 'Activo' },
 ];
 
-// Modificamos el gráfico para reflejar una baja en el promedio reciente debido al 3.8
 const rendimientoData = [
   { name: 'Mar', Promedio: 5.5, Asistencia: 80 },
   { name: 'Abr', Promedio: 5.2, Asistencia: 75 },
   { name: 'May', Promedio: 6.0, Asistencia: 90 },
   { name: 'Jun', Promedio: 6.3, Asistencia: 85 },
-  { name: 'Jul', Promedio: 4.5, Asistencia: 88 }, // Bajada visual en el último mes
+  { name: 'Jul', Promedio: 4.5, Asistencia: 88 },
+];
+
+const bibliotecaData: RecursoBiblioteca[] = [
+  { id: 1, titulo: "Atlas de Anatomía Humana.pdf", tipo: 'PDF', curso: "Anatomía General I", fecha: "20/11/2025", size: "15 MB" },
+  { id: 2, titulo: "Grabación Clase 12: Sistema Nervioso", tipo: 'Video', curso: "Anatomía General I", fecha: "18/11/2025", size: "Streaming" },
+  { id: 3, titulo: "Ejercicios Resueltos Algebra.pdf", tipo: 'PDF', curso: "Matemáticas Aplicadas", fecha: "15/11/2025", size: "2.4 MB" },
+  { id: 4, titulo: "Link: TED Talk sobre Liderazgo", tipo: 'Link', curso: "Taller de Empleabilidad", fecha: "10/11/2025", size: "N/A" },
+];
+
+const tareasData: Tarea[] = [
+  { id: 1, titulo: "Informe Laboratorio 3", curso: "Anatomía General I", vencimiento: "Hoy, 23:59", estado: 'Pendiente', nota: undefined },
+  { id: 2, titulo: "Guía de Ejercicios N°4", curso: "Matemáticas Aplicadas", vencimiento: "Mañana, 23:59", estado: 'Pendiente', nota: undefined },
+  { id: 3, titulo: "Video Presentación Personal", curso: "Inglés Técnico II", vencimiento: "Ayer", estado: 'Atrasado', nota: undefined },
+  { id: 4, titulo: "Ensayo: Ética Profesional", curso: "Taller de Empleabilidad", vencimiento: "10/11/2025", estado: 'Calificado', nota: 6.5 },
+  { id: 5, titulo: "Prueba Diagnóstico", curso: "Matemáticas Aplicadas", vencimiento: "01/11/2025", estado: 'Entregado', nota: undefined },
 ];
 
 // --- 4. COMPONENTES DE VISTA ---
 
+// COMPONENTE: Notificación Toast
+const Toast = ({ message, onClose }: { message: string, onClose: () => void }) => (
+  <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 z-50">
+    <CheckCircle size={20} className="text-green-400" />
+    <span className="text-sm font-medium">{message}</span>
+    <button onClick={onClose} className="ml-2 hover:text-gray-300"><X size={16} /></button>
+  </div>
+);
+
 // VISTA: Dashboard (Resumen)
-const DashboardView = ({ onJoinClass }: { onJoinClass: (curso: string) => void }) => (
+const DashboardView = ({ onJoinClass, onViewTasks }: { onJoinClass: (curso: string) => void, onViewTasks: () => void }) => (
   <div className="space-y-8 animate-in fade-in duration-500 select-none">
     {/* Banner de Bienvenida */}
     <div className="bg-gradient-to-r from-[#003366] to-blue-900 rounded-xl p-8 text-white shadow-lg relative overflow-hidden">
@@ -156,15 +199,35 @@ const DashboardView = ({ onJoinClass }: { onJoinClass: (curso: string) => void }
           <button className="bg-[#FFCC00] text-[#003366] px-6 py-2 rounded-lg font-bold hover:bg-yellow-400 transition shadow-md flex items-center gap-2 select-none">
             <Video size={20}/> Ver Agenda de Hoy
           </button>
-          <button className="bg-red-500/20 border border-red-400 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-500/30 transition flex items-center gap-2 select-none">
-            <AlertCircle size={20}/> Ver Situación Académica
+          <button onClick={onViewTasks} className="bg-white/20 border border-white/30 text-white px-6 py-2 rounded-lg font-bold hover:bg-white/30 transition flex items-center gap-2 select-none">
+            <CheckCircle size={20}/> Mis Tareas Pendientes
           </button>
         </div>
       </div>
       <div className="absolute right-0 top-0 h-full w-1/3 bg-[#FFCC00] opacity-10 transform skew-x-12 translate-x-10 pointer-events-none"></div>
     </div>
 
-    {/* Cursos Rápidos con Indicador de Nota */}
+    {/* Accesos Rápidos KPI */}
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center text-center hover:shadow-md transition cursor-pointer">
+        <span className="text-3xl font-bold text-[#003366]">5.1</span>
+        <span className="text-xs text-gray-500 uppercase font-bold mt-1">Promedio General</span>
+      </div>
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center text-center hover:shadow-md transition cursor-pointer">
+        <span className="text-3xl font-bold text-green-600">88%</span>
+        <span className="text-xs text-gray-500 uppercase font-bold mt-1">Asistencia Global</span>
+      </div>
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center text-center hover:shadow-md transition cursor-pointer">
+        <span className="text-3xl font-bold text-orange-500">3</span>
+        <span className="text-xs text-gray-500 uppercase font-bold mt-1">Tareas Pendientes</span>
+      </div>
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center text-center hover:shadow-md transition cursor-pointer">
+        <span className="text-3xl font-bold text-blue-500">12</span>
+        <span className="text-xs text-gray-500 uppercase font-bold mt-1">Créditos Aprobados</span>
+      </div>
+    </div>
+
+    {/* Cursos Rápidos */}
     <div>
       <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
         <BookOpen className="text-[#003366]" /> Mis Cursos Activos
@@ -172,7 +235,6 @@ const DashboardView = ({ onJoinClass }: { onJoinClass: (curso: string) => void }
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {cursosData.slice(0, 3).map((curso) => (
           <div key={curso.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition group relative select-none">
-            {/* Indicador de Nota en la Tarjeta */}
             {curso.promedioActual && (
               <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold shadow-sm z-10 ${
                 curso.promedioActual < 4.0 ? 'bg-red-500 text-white animate-pulse' : 'bg-green-500 text-white'
@@ -180,7 +242,6 @@ const DashboardView = ({ onJoinClass }: { onJoinClass: (curso: string) => void }
                 Nota: {curso.promedioActual}
               </div>
             )}
-            
             <div className="h-32 w-full relative overflow-hidden">
               <img src={curso.imagen} alt={curso.nombre} className="w-full h-full object-cover group-hover:scale-105 transition duration-500 pointer-events-none"/>
               <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-bold text-[#003366]">
@@ -210,14 +271,15 @@ const DashboardView = ({ onJoinClass }: { onJoinClass: (curso: string) => void }
       </div>
     </div>
 
+    {/* GRÁFICO CORREGIDO: EJES DOBLES */}
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <BarChart className="text-[#003366]" size={20}/> Mi Rendimiento Académico
+          <BarChart className="text-[#003366]" size={20}/> Mi Rendimiento vs Asistencia
         </h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={rendimientoData}>
+            <ComposedChart data={rendimientoData}>
               <defs>
                 <linearGradient id="colorPromedio" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={rendimientoData[rendimientoData.length-1].Promedio < 5.0 ? "#ef4444" : "#003366"} stopOpacity={0.1}/>
@@ -226,19 +288,13 @@ const DashboardView = ({ onJoinClass }: { onJoinClass: (curso: string) => void }
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" />
-              <YAxis domain={[1, 7]} />
-              <Tooltip />
-              {/* Línea cambia de color si el último promedio es bajo */}
-              <Area 
-                type="monotone" 
-                dataKey="Promedio" 
-                stroke={rendimientoData[rendimientoData.length-1].Promedio < 5.0 ? "#ef4444" : "#003366"} 
-                fillOpacity={1} 
-                fill="url(#colorPromedio)" 
-                strokeWidth={3} 
-              />
-              <Line type="monotone" dataKey="Asistencia" stroke="#FFCC00" strokeWidth={3} dot={{r: 4}} />
-            </AreaChart>
+              <YAxis yAxisId="left" domain={[1, 7]} label={{ value: 'Nota', angle: -90, position: 'insideLeft', fill: '#003366' }} />
+              <YAxis yAxisId="right" orientation="right" domain={[0, 100]} label={{ value: 'Asistencia %', angle: 90, position: 'insideRight', fill: '#EAB308' }} />
+              <Tooltip contentStyle={{borderRadius: '8px', border: '1px solid #e5e7eb'}} formatter={(value: number, name: string) => [name === 'Asistencia' ? `${value}%` : value, name]} />
+              <Legend />
+              <Area yAxisId="left" type="monotone" dataKey="Promedio" stroke={rendimientoData[rendimientoData.length-1].Promedio < 5.0 ? "#ef4444" : "#003366"} fillOpacity={1} fill="url(#colorPromedio)" strokeWidth={3} name="Promedio Notas" />
+              <Line yAxisId="right" type="monotone" dataKey="Asistencia" stroke="#EAB308" strokeWidth={3} dot={{r: 4, fill: '#EAB308'}} name="Asistencia" />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -253,16 +309,19 @@ const DashboardView = ({ onJoinClass }: { onJoinClass: (curso: string) => void }
               <div className={`mt-1 p-2 rounded-full h-fit ${
                 act.tipo === 'Zoom' ? 'bg-blue-100 text-blue-600' : 
                 act.tipo === 'Tarea' ? 'bg-red-100 text-red-600' : 
-                act.tipo === 'Foro' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'
+                act.tipo === 'Foro' ? 'bg-purple-100 text-purple-600' : 
+                act.tipo === 'Examen' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'
               }`}>
                 {act.tipo === 'Zoom' && <Video size={16}/>}
                 {act.tipo === 'Tarea' && <AlertCircle size={16}/>}
                 {act.tipo === 'Foro' && <MessageCircle size={16}/>}
                 {act.tipo === 'Recurso' && <FileText size={16}/>}
+                {act.tipo === 'Examen' && <FileText size={16}/>}
               </div>
               <div>
                 <p className="text-sm font-bold text-gray-800">{act.titulo}</p>
                 <p className="text-xs text-gray-500">{act.curso} • {act.fecha}</p>
+                {act.estado === 'Urgente' && <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded mt-1 inline-block">¡Urgente!</span>}
               </div>
             </div>
           ))}
@@ -272,7 +331,7 @@ const DashboardView = ({ onJoinClass }: { onJoinClass: (curso: string) => void }
   </div>
 );
 
-// VISTA: Mis Cursos (Completo)
+// VISTA: Mis Cursos
 const CoursesView = ({ onJoinClass }: { onJoinClass: (curso: string) => void }) => (
   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 select-none">
     <div className="flex justify-between items-center">
@@ -498,66 +557,333 @@ const ForumsView = () => (
   </div>
 );
 
-// VISTA: Aula Virtual (Simulación Zoom)
-const ClassroomView = ({ curso, onExit }: { curso: string, onExit: () => void }) => (
-  <div className="h-full flex flex-col animate-in zoom-in-95 duration-300 select-none">
-    <div className="bg-black flex-1 rounded-xl overflow-hidden relative group shadow-2xl">
-      {/* Header Video */}
-      <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent z-10 flex justify-between text-white">
-        <div>
-          <h3 className="font-bold text-lg flex items-center gap-2"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> En Vivo: {curso}</h3>
-          <p className="text-xs text-gray-300">Vía Zoom Integration (AWS Low Latency)</p>
+// VISTA: Biblioteca
+const LibraryView = () => (
+  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 select-none">
+    <div className="flex justify-between items-center">
+      <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+        <Library className="text-[#003366]" /> Biblioteca Digital (S3)
+      </h2>
+      <div className="flex gap-2">
+        <button className="bg-[#003366] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-900 flex items-center gap-2 select-none">
+          <Upload size={16}/> Subir Recurso
+        </button>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {bibliotecaData.map((recurso) => (
+        <div key={recurso.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition group">
+          <div className="flex justify-between items-start mb-3">
+            <div className={`p-2 rounded-lg ${
+              recurso.tipo === 'PDF' ? 'bg-red-100 text-red-600' :
+              recurso.tipo === 'Video' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+            }`}>
+              {recurso.tipo === 'PDF' && <FileText size={20}/>}
+              {recurso.tipo === 'Video' && <Video size={20}/>}
+              {recurso.tipo === 'Link' && <BookOpen size={20}/>}
+            </div>
+            <button className="text-gray-400 hover:text-[#003366]"><MoreVertical size={16}/></button>
+          </div>
+          <h4 className="font-bold text-gray-800 text-sm mb-1 truncate">{recurso.titulo}</h4>
+          <p className="text-xs text-gray-500 mb-4">{recurso.curso}</p>
+          <div className="flex justify-between items-center text-xs text-gray-400 border-t border-gray-100 pt-3">
+            <span>{recurso.size}</span>
+            <span>{recurso.fecha}</span>
+          </div>
         </div>
-        <div className="flex gap-2">
-           <span className="bg-black/50 px-3 py-1 rounded text-xs flex items-center gap-1"><User size={12}/> 24 Estudiantes</span>
+      ))}
+    </div>
+  </div>
+);
+
+// VISTA: Mis Tareas
+const TasksView = () => (
+  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 select-none">
+    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+      <CheckCircle className="text-[#003366]" /> Mis Tareas
+    </h2>
+
+    <div className="grid grid-cols-1 gap-3">
+      {tareasData.map((tarea) => (
+        <div key={tarea.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:bg-gray-50 transition">
+          <div className="flex items-center gap-4">
+            <div className={`p-2 rounded-full ${
+              tarea.estado === 'Pendiente' ? 'bg-yellow-100 text-yellow-600' :
+              tarea.estado === 'Atrasado' ? 'bg-red-100 text-red-600' :
+              tarea.estado === 'Calificado' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
+            }`}>
+              <Clock size={20}/>
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-900">{tarea.titulo}</h4>
+              <p className="text-sm text-gray-500">{tarea.curso}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className={`text-sm font-bold px-3 py-1 rounded-full inline-block ${
+              tarea.estado === 'Pendiente' ? 'bg-yellow-50 text-yellow-700' :
+              tarea.estado === 'Atrasado' ? 'bg-red-50 text-red-700' :
+              tarea.estado === 'Calificado' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'
+            }`}>
+              {tarea.estado}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Vence: {tarea.vencimiento}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// VISTA: Perfil (NUEVO DISEÑO MEJORADO)
+const ProfileView = () => (
+  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 select-none">
+    {/* Encabezado del Perfil con Fondo */}
+    <div className="relative">
+      <div className="h-48 bg-gradient-to-r from-[#003366] to-[#004080] rounded-t-xl"></div>
+      <div className="absolute top-4 right-4 flex gap-2">
+        <button className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-sm transition">
+          <Settings size={20} />
+        </button>
+        <button className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-sm transition">
+          <Edit3 size={20} />
+        </button>
+      </div>
+      
+      <div className="px-8 pb-8 bg-white rounded-b-xl shadow-sm border-x border-b border-gray-200">
+        <div className="flex flex-col md:flex-row gap-6 items-end -mt-16 mb-6">
+          {/* Avatar */}
+          <div className="relative">
+            <div className="w-32 h-32 bg-white rounded-full p-1.5 shadow-lg">
+              <div className="w-full h-full bg-gray-100 rounded-full flex items-center justify-center text-4xl font-bold text-[#003366] border-2 border-gray-200">FL</div>
+            </div>
+            <div className="absolute bottom-2 right-2 bg-green-500 w-5 h-5 rounded-full border-4 border-white"></div>
+          </div>
+          
+          {/* Info Principal */}
+          <div className="flex-1 mb-2">
+            <h2 className="text-3xl font-bold text-gray-900">Fernanda Lagos</h2>
+            <p className="text-[#003366] font-medium flex items-center gap-2">
+              <GraduationCap size={18}/> Estudiante Regular - Téc. en Enfermería
+            </p>
+            <div className="flex gap-4 mt-2 text-sm text-gray-500">
+              <span className="flex items-center gap-1"><MapPin size={14}/> Sede Santiago Centro</span>
+              <span className="flex items-center gap-1"><Mail size={14}/> f.lagos@crecermas.cl</span>
+            </div>
+          </div>
+
+          {/* Estadísticas Rápidas */}
+          <div className="flex gap-4 mb-2">
+            <div className="text-center px-4 border-r border-gray-200">
+              <p className="text-2xl font-bold text-[#003366]">5.1</p>
+              <p className="text-xs text-gray-500 uppercase font-bold">PGA</p>
+            </div>
+            <div className="text-center px-4 border-r border-gray-200">
+              <p className="text-2xl font-bold text-green-600">88%</p>
+              <p className="text-xs text-gray-500 uppercase font-bold">Asist.</p>
+            </div>
+            <div className="text-center px-4">
+              <p className="text-2xl font-bold text-blue-600">3º</p>
+              <p className="text-xs text-gray-500 uppercase font-bold">Semestre</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Barra de Progreso de Carrera */}
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-sm font-bold text-gray-700">Progreso de la Carrera</h4>
+            <span className="text-sm font-bold text-[#003366]">35% Completado</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="bg-gradient-to-r from-[#003366] to-blue-500 h-3 rounded-full" style={{ width: '35%' }}></div>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">Has aprobado 12 de 34 asignaturas obligatorias.</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Grid de Detalles */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Columna Izquierda: Datos */}
+      <div className="md:col-span-2 space-y-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <User className="text-[#FFCC00]" size={20}/> Información Personal
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">RUT</p>
+              <p className="font-medium text-gray-800">19.876.543-2</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Fecha de Nacimiento</p>
+              <p className="font-medium text-gray-800">12 de Agosto, 2002</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Teléfono Móvil</p>
+              <p className="font-medium text-gray-800">+56 9 1234 5678</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Dirección Particular</p>
+              <p className="font-medium text-gray-800">Av. Providencia 1234, Depto 502</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Award className="text-[#FFCC00]" size={20}/> Logros y Certificaciones
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+              <div className="p-2 bg-blue-200 text-blue-800 rounded-full"><Award size={20}/></div>
+              <div>
+                <h4 className="font-bold text-[#003366] text-sm">Cuadro de Honor - 2024</h4>
+                <p className="text-xs text-gray-600">Por obtener promedio superior a 6.0</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-100 opacity-75">
+              <div className="p-2 bg-gray-200 text-gray-500 rounded-full"><Award size={20}/></div>
+              <div>
+                <h4 className="font-bold text-gray-700 text-sm">Certificación RCP Básico</h4>
+                <p className="text-xs text-gray-500">Pendiente de cursar</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Columna Derecha: Configuración */}
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Settings className="text-gray-400" size={20}/> Preferencias
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Notificaciones Email</span>
+              <div className="w-10 h-5 bg-green-500 rounded-full relative cursor-pointer shadow-inner">
+                <div className="w-3 h-3 bg-white rounded-full absolute right-1 top-1 shadow-sm"></div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Alertas SMS</span>
+              <div className="w-10 h-5 bg-gray-300 rounded-full relative cursor-pointer shadow-inner">
+                <div className="w-3 h-3 bg-white rounded-full absolute left-1 top-1 shadow-sm"></div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Modo Oscuro</span>
+              <div className="w-10 h-5 bg-gray-300 rounded-full relative cursor-pointer shadow-inner">
+                <div className="w-3 h-3 bg-white rounded-full absolute left-1 top-1 shadow-sm"></div>
+              </div>
+            </div>
+          </div>
+          <button className="w-full mt-6 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 font-medium transition">
+            Cambiar Contraseña
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// VISTA: Aula Virtual (Simulación Zoom) - MODAL OVERLAY
+const ClassroomModal = ({ curso, onExit }: { curso: string, onExit: () => void }) => (
+  <div className="fixed inset-0 z-50 bg-black/90 flex flex-col animate-in zoom-in-95 duration-300">
+    <div className="flex-1 relative flex flex-col">
+      {/* Header Video */}
+      <div className="absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-black/80 to-transparent z-10 flex justify-between text-white items-start">
+        <div>
+          <h3 className="font-bold text-xl flex items-center gap-2"><span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span> En Vivo: {curso}</h3>
+          <p className="text-sm text-gray-300">Conectado vía Zoom Integration (AWS Low Latency)</p>
+        </div>
+        <div className="flex gap-4 items-center">
+           <span className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2"><User size={16}/> 24 Estudiantes</span>
+           <button onClick={onExit} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
+             <X size={18}/> Salir
+           </button>
         </div>
       </div>
       
       {/* Fake Video Content */}
-      <div className="w-full h-full flex items-center justify-center bg-gray-900">
+      <div className="flex-1 flex items-center justify-center bg-gray-900 relative">
         <div className="text-center">
-          <div className="w-20 h-20 bg-[#003366] rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold border-4 border-[#FFCC00]">JP</div>
-          <p className="text-white font-medium">Profesor Juan Pérez</p>
-          <p className="text-gray-400 text-sm">Compartiendo pantalla...</p>
+          <div className="w-32 h-32 bg-[#003366] rounded-full flex items-center justify-center mx-auto mb-6 text-white text-4xl font-bold border-4 border-[#FFCC00] shadow-2xl relative">
+            JP
+            <div className="absolute bottom-2 right-2 bg-green-500 w-6 h-6 rounded-full border-4 border-[#003366]"></div>
+          </div>
+          <p className="text-white text-xl font-bold mb-2">Profesor Juan Pérez</p>
+          <p className="text-gray-400 text-base">Está compartiendo su pantalla...</p>
+        </div>
+
+        {/* Participantes Grid (Fake) */}
+        <div className="absolute right-4 top-24 bottom-24 w-48 flex flex-col gap-2 overflow-hidden">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="bg-gray-800 rounded-lg aspect-video flex items-center justify-center border border-gray-700">
+              <User size={24} className="text-gray-600"/>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-gray-800/90 px-6 py-3 rounded-full flex gap-6 backdrop-blur-sm shadow-lg border border-white/10">
-        <button className="text-white hover:text-gray-300 p-2"><Video size={20}/></button>
-        <button className="text-white hover:text-gray-300 p-2"><MessageCircle size={20}/></button>
-        <button className="text-white hover:text-gray-300 p-2"><FileText size={20}/></button>
-        <div className="w-px bg-gray-600 h-6 my-auto"></div>
-        <button onClick={onExit} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition">
-          Salir de la Clase
+      {/* Controls Bar */}
+      <div className="h-24 bg-gray-900 border-t border-gray-800 flex items-center justify-center gap-8 pb-4">
+        <button className="flex flex-col items-center gap-1 text-white hover:text-[#FFCC00] transition group">
+          <div className="p-3 rounded-full bg-gray-800 group-hover:bg-gray-700"><Video size={24}/></div>
+          <span className="text-xs">Cámara</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-white hover:text-[#FFCC00] transition group">
+          <div className="p-3 rounded-full bg-gray-800 group-hover:bg-gray-700"><MessageCircle size={24}/></div>
+          <span className="text-xs">Chat</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-green-500 hover:text-green-400 transition group">
+          <div className="p-3 rounded-full bg-gray-800 group-hover:bg-gray-700"><Upload size={24}/></div>
+          <span className="text-xs">Compartir</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-white hover:text-[#FFCC00] transition group">
+          <div className="p-3 rounded-full bg-gray-800 group-hover:bg-gray-700"><FileText size={24}/></div>
+          <span className="text-xs">Notas</span>
         </button>
       </div>
-    </div>
-    <div className="mt-4 bg-blue-50 border border-blue-100 p-4 rounded-lg flex items-center justify-between text-sm text-[#003366]">
-      <div className="flex items-center gap-2">
-        <CheckCircle size={16}/> 
-        <span>Tu asistencia ha sido registrada automáticamente en Moodle.</span>
-      </div>
-      <button className="font-bold hover:underline">Ver material de la clase</button>
     </div>
   </div>
 );
 
 // --- 5. COMPONENTE PRINCIPAL (LAYOUT) ---
 export default function CampusVirtualApp() {
-  const [view, setView] = useState<'dashboard' | 'cursos' | 'calendario' | 'notas' | 'foros' | 'classroom'>('dashboard');
-  const [activeClass, setActiveClass] = useState("");
+  const [view, setView] = useState<'dashboard' | 'cursos' | 'calendario' | 'notas' | 'foros' | 'biblioteca' | 'tareas' | 'perfil'>('dashboard');
+  const [activeClass, setActiveClass] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const handleJoinClass = (curso: string) => {
     setActiveClass(curso);
-    setView('classroom');
+  };
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
   };
 
   return (
-    <div className="flex h-screen bg-[#F3F4F6] font-sans text-gray-800 overflow-hidden select-none">
+    <div className="flex h-screen bg-[#F3F4F6] font-sans text-gray-800 overflow-hidden select-none relative">
       
+      {/* TOAST NOTIFICATION */}
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+
+      {/* CLASSROOM MODAL OVERLAY */}
+      {activeClass && (
+        <ClassroomModal 
+          curso={activeClass} 
+          onExit={() => { setActiveClass(null); showToast("Has salido de la clase correctamente."); }} 
+        />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="w-64 bg-[#003366] text-white flex flex-col shadow-2xl z-20">
+      <aside className="w-64 bg-[#003366] text-white flex flex-col shadow-2xl z-20 transition-all duration-300">
         {/* Logo */}
         <div className="h-20 flex items-center px-6 border-b border-blue-800 bg-[#003366]">
           <div className="w-10 h-10 bg-[#FFCC00] rounded-lg flex items-center justify-center text-[#003366] font-bold text-lg shadow-lg transform -rotate-3">
@@ -570,7 +896,7 @@ export default function CampusVirtualApp() {
         </div>
 
         {/* Menú de Navegación */}
-        <nav className="flex-1 py-6 space-y-1 px-3">
+        <nav className="flex-1 py-6 space-y-1 px-3 overflow-y-auto">
           <div onClick={() => setView('dashboard')} className={`cursor-pointer flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${view === 'dashboard' ? 'bg-blue-800 text-[#FFCC00] font-bold shadow-inner' : 'hover:bg-blue-800/50 text-blue-100'}`}>
             <LayoutDashboard size={20} className="mr-3" /> <span>Inicio</span>
           </div>
@@ -583,6 +909,12 @@ export default function CampusVirtualApp() {
           <div onClick={() => setView('notas')} className={`cursor-pointer flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${view === 'notas' ? 'bg-blue-800 text-[#FFCC00] font-bold shadow-inner' : 'hover:bg-blue-800/50 text-blue-100'}`}>
             <FileText size={20} className="mr-3" /> <span>Notas</span>
           </div>
+          <div onClick={() => setView('tareas')} className={`cursor-pointer flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${view === 'tareas' ? 'bg-blue-800 text-[#FFCC00] font-bold shadow-inner' : 'hover:bg-blue-800/50 text-blue-100'}`}>
+            <CheckCircle size={20} className="mr-3" /> <span>Mis Tareas</span>
+          </div>
+          <div onClick={() => setView('biblioteca')} className={`cursor-pointer flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${view === 'biblioteca' ? 'bg-blue-800 text-[#FFCC00] font-bold shadow-inner' : 'hover:bg-blue-800/50 text-blue-100'}`}>
+            <Library size={20} className="mr-3" /> <span>Biblioteca</span>
+          </div>
           
           <div className="pt-4 mt-4 border-t border-blue-800">
             <p className="px-4 text-xs font-bold text-blue-400 uppercase mb-2">Comunidad</p>
@@ -594,6 +926,9 @@ export default function CampusVirtualApp() {
         
         {/* Footer Sidebar */}
         <div className="p-4 bg-blue-900/50">
+          <button onClick={() => setView('perfil')} className="flex items-center text-blue-200 hover:text-white transition-colors w-full px-2 py-2 text-sm mb-2">
+            <Settings size={18} className="mr-3"/> <span>Configuración</span>
+          </button>
           <button className="flex items-center text-blue-200 hover:text-white transition-colors w-full px-2 py-2 text-sm">
             <LogOut size={18} className="mr-3"/> <span>Cerrar Sesión</span>
           </button>
@@ -601,10 +936,10 @@ export default function CampusVirtualApp() {
       </aside>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
+      <div className="flex-1 flex flex-col min-w-0 relative h-screen">
         
         {/* Header Superior */}
-        <header className="h-20 bg-white shadow-sm flex items-center justify-between px-8 z-10 border-b border-gray-200">
+        <header className="h-20 bg-white shadow-sm flex items-center justify-between px-8 z-10 border-b border-gray-200 shrink-0">
           {/* Buscador */}
           <div className="relative w-96 hidden md:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -616,12 +951,38 @@ export default function CampusVirtualApp() {
           </div>
 
           {/* Perfil y Notificaciones */}
-          <div className="flex items-center gap-6">
-            <button className="relative p-2 hover:bg-gray-100 rounded-full transition">
+          <div className="flex items-center gap-6 relative">
+            <button 
+              className="relative p-2 hover:bg-gray-100 rounded-full transition"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
               <Bell size={22} className="text-gray-600" />
               <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
-            <div className="flex items-center gap-3 pl-6 border-l border-gray-200">
+
+            {/* Panel de Notificaciones Dropdown */}
+            {showNotifications && (
+              <div className="absolute top-12 right-40 w-80 bg-white shadow-xl rounded-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                  <h4 className="font-bold text-gray-800 text-sm">Notificaciones</h4>
+                  <button onClick={() => setShowNotifications(false)}><X size={16} className="text-gray-400"/></button>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  <div className="p-4 border-b border-gray-50 hover:bg-blue-50 cursor-pointer">
+                    <p className="text-sm font-bold text-[#003366]">Nueva nota publicada</p>
+                    <p className="text-xs text-gray-500">Matemáticas Aplicadas - Prueba 2</p>
+                    <p className="text-[10px] text-gray-400 mt-1">Hace 10 min</p>
+                  </div>
+                  <div className="p-4 border-b border-gray-50 hover:bg-blue-50 cursor-pointer">
+                    <p className="text-sm font-bold text-red-600">¡Tarea por vencer!</p>
+                    <p className="text-xs text-gray-500">Informe Laboratorio 3</p>
+                    <p className="text-[10px] text-gray-400 mt-1">Hace 1 hora</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 pl-6 border-l border-gray-200 cursor-pointer" onClick={() => setView('perfil')}>
               <div className="hidden md:block text-right">
                 <p className="text-sm font-bold text-gray-800">Fernanda Lagos</p>
                 <p className="text-xs text-gray-500">Estudiante - Enfermería</p>
@@ -638,13 +999,24 @@ export default function CampusVirtualApp() {
           {/* Background Pattern opcional */}
           <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] -z-10 pointer-events-none" />
           
-          {view === 'dashboard' && <DashboardView onJoinClass={handleJoinClass} />}
+          {/* VISTAS */}
+          {view === 'dashboard' && <DashboardView onJoinClass={handleJoinClass} onViewTasks={() => setView('tareas')} />}
           {view === 'cursos' && <CoursesView onJoinClass={handleJoinClass} />}
           {view === 'calendario' && <CalendarView />}
           {view === 'notas' && <GradesView />}
           {view === 'foros' && <ForumsView />}
-          {view === 'classroom' && <ClassroomView curso={activeClass} onExit={() => setView('dashboard')} />}
+          {view === 'biblioteca' && <LibraryView />}
+          {view === 'tareas' && <TasksView />}
+          {view === 'perfil' && <ProfileView />}
         </main>
+
+        {/* Botón Flotante de Ayuda */}
+        <button 
+          onClick={() => showToast("Conectando con Soporte Académico...")}
+          className="fixed bottom-8 right-8 bg-[#FFCC00] text-[#003366] p-4 rounded-full shadow-lg hover:bg-yellow-400 transition transform hover:scale-110 z-40 flex items-center justify-center"
+        >
+          <MessageSquare size={24} fill="#003366" className="text-[#003366]" />
+        </button>
       </div>
     </div>
   );
